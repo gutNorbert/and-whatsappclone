@@ -2,8 +2,10 @@ package com.gutNorbert.flashchatnewfirebase;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Color;
 import android.provider.ContactsContract;
 import android.support.v7.widget.RecyclerView;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,7 +13,9 @@ import android.widget.BaseAdapter;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 
 import org.w3c.dom.Text;
@@ -29,9 +33,39 @@ public class ChatListAdapter extends BaseAdapter{
     private String mDisplayName;
     private ArrayList<DataSnapshot> mSnapshotList;
 
+    private ChildEventListener mListener = new ChildEventListener() {
+        @Override
+        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+            mSnapshotList.add(dataSnapshot);
+            notifyDataSetChanged(); //refresh listview
+        }
+
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+        }
+
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public void onCancelled(DatabaseError databaseError) {
+
+        }
+    };
+
     public ChatListAdapter(Activity activity, DatabaseReference databaseReference, String displayName) {
         mActivity = activity;
         mDatabaseReference = databaseReference.child("messages");
+        mDatabaseReference.addChildEventListener(mListener);
         mDisplayName = displayName;
         mSnapshotList = new ArrayList<>();
     }
@@ -44,12 +78,13 @@ public class ChatListAdapter extends BaseAdapter{
 
     @Override
     public int getCount() {
-        return 0;
+       return mSnapshotList.size();
     }
 
     @Override
     public InstantMessage getItem(int pos) {
-        return null;
+        DataSnapshot snapshot = mSnapshotList.get(pos);
+        return snapshot.getValue(InstantMessage.class); //converts message from JSON
     }
 
     @Override
@@ -73,6 +108,9 @@ public class ChatListAdapter extends BaseAdapter{
         final InstantMessage message = getItem(pos);
         final ViewHolder holder = (ViewHolder)view.getTag();
 
+        boolean isMe = message.getAuthor().equals(mDisplayName);
+        setChatRowAppearance(isMe,holder);
+
         String author = message.getAuthor();
         holder.authorName.setText(author);
 
@@ -81,4 +119,24 @@ public class ChatListAdapter extends BaseAdapter{
 
         return view;
     }
+
+    private void setChatRowAppearance(boolean isItMe, ViewHolder holder){
+        if (isItMe){
+            holder.params.gravity = Gravity.END; //Right side
+            holder.authorName.setTextColor(Color.GREEN);
+            holder.body.setBackgroundResource(R.drawable.bubble2);
+        } else {
+            holder.params.gravity = Gravity.START;
+            holder.authorName.setTextColor(Color.BLUE);
+            holder.body.setBackgroundResource(R.drawable.bubble1);
+        }
+
+        holder.authorName.setLayoutParams(holder.params);
+        holder.body.setLayoutParams(holder.params);
+    }
+
+    public void cleanup(){
+        mDatabaseReference.removeEventListener(mListener);
+    }
+
 }
